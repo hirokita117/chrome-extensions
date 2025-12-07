@@ -1,0 +1,10 @@
+{
+    "manifest_version": 3,
+    "name": "Contents to Markdown",
+    "version": "1.0",
+    "description": "現在開いている記事をMarkdown形式で取得します。",
+    "permissions": ["activeTab", "scripting"],
+    "action": {
+      "default_popup": "popup.html"
+    }
+  }
