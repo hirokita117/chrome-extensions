@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Clipboard to Obsidian",
+  "version": "1.0",
+  "description": "クリップボードの内容をObsidianに転送します",
+  "permissions": ["storage", "clipboardRead"],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
