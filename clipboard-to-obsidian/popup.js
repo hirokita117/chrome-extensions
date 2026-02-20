@@ -1,4 +1,4 @@
-const SETTING_KEYS = ["vault", "folder", "tags"];
+const SETTING_KEYS = ["vault", "folder", "type", "tags"];
 
 async function loadSettings() {
   const data = await chrome.storage.local.get(SETTING_KEYS);
@@ -40,13 +40,18 @@ function generateTitle() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 }
 
-function buildFrontmatter(tags) {
-  const lines = ["---"];
-  if (tags.length > 0) {
-    lines.push(`tags: [${tags.join(", ")}]`);
-  }
+function buildFrontmatter(type, tags) {
   const today = new Date().toISOString().split("T")[0];
+  const lines = ["---"];
+  if (type) {
+    lines.push(`type: ${type}`);
+  }
+  lines.push("tags:");
+  for (const tag of tags) {
+    lines.push(`  - ${tag}`);
+  }
   lines.push(`created: ${today}`);
+  lines.push(`updated: ${today}`);
   lines.push("---");
   return lines.join("\n");
 }
@@ -81,7 +86,8 @@ async function sendToObsidian() {
     ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
     : [];
 
-  const frontmatter = buildFrontmatter(tags);
+  const type = document.getElementById("type").value.trim();
+  const frontmatter = buildFrontmatter(type, tags);
   const content = `${frontmatter}\n\n${clipText}`;
 
   const filePath = folder ? `${folder}/${title}` : title;
