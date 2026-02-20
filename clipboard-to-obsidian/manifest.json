@@ -5,6 +5,14 @@
   "description": "クリップボードの内容をObsidianに転送します",
   "permissions": ["storage", "clipboardRead"],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16_.png",
+      "128": "icons/128_.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16_.png",
+    "128": "icons/128_.png"
   }
 }
