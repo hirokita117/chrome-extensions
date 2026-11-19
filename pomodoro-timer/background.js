@@ -6,6 +6,7 @@ const DEFAULT_SETTINGS = {
   soundEnabled: true,
   soundVolume: 70, // 0〜100
   soundType: 'chime', // sound.js の SOUND_TYPES のキー
+  autoStartNext: false, // フェーズ終了後に次のフェーズを自動で開始する
 };
 
 const PHASE_LABEL = {
@@ -77,7 +78,21 @@ async function updateBadge(state) {
   await chrome.action.setBadgeText({ text: String(min) });
 }
 
+// 通知 ID はフェーズ終了ごとに変える。同じ ID を使い回すと、前の通知
+// （requireInteraction で残っているもの）が書き換わるだけで、新しい通知として表示されないことがある。
+const NOTIFICATION_PREFIX = 'phaseEnd-';
+
+async function clearPhaseNotifications() {
+  const all = await chrome.notifications.getAll();
+  await Promise.all(
+    Object.keys(all)
+      .filter((id) => id.startsWith(NOTIFICATION_PREFIX))
+      .map((id) => chrome.notifications.clear(id))
+  );
+}
+
 async function startTimer(state) {
+  await clearPhaseNotifications();
   const ms = state.status === 'paused' ? state.remainingMs : phaseDurationMs(state.phase, state.settings);
   state.status = 'running';
   state.endTime = Date.now() + ms;
@@ -111,7 +126,13 @@ async function finishPhase() {
   state.status = 'idle';
   state.endTime = null;
   state.remainingMs = null;
-  await setState(state);
+  const autoStart = state.settings.autoStartNext;
+  if (autoStart) {
+    await startTimer(state);
+  } else {
+    await clearPhaseNotifications();
+    await setState(state);
+  }
 
   if (state.settings.soundEnabled) {
     playSound(state.settings).catch((e) => console.warn('通知音を再生できませんでした', e));
@@ -119,15 +140,26 @@ async function finishPhase() {
 
   const title =
     finished === 'work' ? `作業が終わりました（今日 ${state.todayCount} 回目）` : '休憩が終わりました';
-  chrome.notifications.create('phaseEnd', {
-    type: 'basic',
-    iconUrl: 'icons/128.png',
-    title,
-    message: `次は「${PHASE_LABEL[state.phase]}」です。`,
-    buttons: [{ title: `${PHASE_LABEL[state.phase]}を開始` }],
-    requireInteraction: true,
-    priority: 2,
-  });
+  const id = NOTIFICATION_PREFIX + Date.now();
+  if (autoStart) {
+    chrome.notifications.create(id, {
+      type: 'basic',
+      iconUrl: 'icons/128.png',
+      title,
+      message: `「${PHASE_LABEL[state.phase]}」を開始しました。`,
+      priority: 2,
+    });
+  } else {
+    chrome.notifications.create(id, {
+      type: 'basic',
+      iconUrl: 'icons/128.png',
+      title,
+      message: `次は「${PHASE_LABEL[state.phase]}」です。`,
+      buttons: [{ title: `${PHASE_LABEL[state.phase]}を開始` }],
+      requireInteraction: true,
+      priority: 2,
+    });
+  }
 }
 
 // service worker は音を出せないので、offscreen ドキュメントで再生する
@@ -156,6 +188,15 @@ async function playSound(settings) {
     soundType: settings.soundType,
     volume: settings.soundVolume,
   });
+}
+
+// 状態の読み書きを1つずつ順番に行う。phaseEnd と tick のアラームが同時に来たときなどに、
+// 古い状態をもとに二重に処理しないようにする。
+let queue = Promise.resolve();
+function serialized(fn) {
+  const run = queue.then(fn, fn);
+  queue = run.catch(() => {});
+  return run;
 }
 
 async function handleCommand(type, payload) {
@@ -195,6 +236,30 @@ async function handleCommand(type, payload) {
       break;
     case 'openWidget':
       await openWidget();
+      break;
+
+    // ---- デバッグ用（一時的な機能。不要になったら popup の debug セクションごと削除する） ----
+    case 'debugSetRemaining': {
+      const ms = Math.max(0, payload.seconds) * 1000;
+      if (state.status === 'paused') {
+        state.remainingMs = ms;
+        await setState(state);
+      } else {
+        if (state.status !== 'running') await startTimer(state);
+        state.endTime = Date.now() + ms;
+        await chrome.alarms.create('phaseEnd', { when: state.endTime });
+        await setState(state);
+      }
+      break;
+    }
+    case 'debugFinishNow':
+      if (state.status !== 'running') await startTimer(state);
+      await finishPhase();
+      break;
+    case 'debugResetCycle':
+      state.completedInCycle = 0;
+      state.todayCount = 0;
+      await setState(state);
       break;
   }
 }
@@ -247,37 +312,33 @@ chrome.windows.onRemoved.addListener(async (windowId) => {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.target === 'offscreen') return false;
-  handleCommand(msg.type, msg.payload)
+  serialized(() => handleCommand(msg.type, msg.payload))
     .then(() => sendResponse({ ok: true }))
     .catch((e) => sendResponse({ ok: false, error: String(e) }));
   return true;
 });
 
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === 'phaseEnd') {
-    await finishPhase();
-  } else if (alarm.name === 'tick') {
+chrome.alarms.onAlarm.addListener((alarm) =>
+  serialized(async () => {
     const state = await getState();
-    // phaseEnd アラームが遅れた場合の保険
-    if (state.status === 'running' && Date.now() >= state.endTime) await finishPhase();
+    if (state.status !== 'running') return;
+    // phaseEnd が来たとき、または phaseEnd が遅れて tick で終了時刻を過ぎていたら終了する。
+    // デバッグで終了時刻を変えた直後の古い phaseEnd は、時刻をまだ過ぎていないので無視される。
+    if (Date.now() >= state.endTime - 500) await finishPhase();
     else await updateBadge(state);
-  }
-});
+  })
+);
 
-async function startFromNotification() {
-  chrome.notifications.clear('phaseEnd');
-  await handleCommand('start');
+function startFromNotification(id) {
+  if (!id.startsWith(NOTIFICATION_PREFIX)) return;
+  chrome.notifications.clear(id);
+  serialized(() => handleCommand('start'));
 }
 
-chrome.notifications.onButtonClicked.addListener((id) => {
-  if (id === 'phaseEnd') startFromNotification();
-});
+chrome.notifications.onButtonClicked.addListener(startFromNotification);
+chrome.notifications.onClicked.addListener(startFromNotification);
 
-chrome.notifications.onClicked.addListener((id) => {
-  if (id === 'phaseEnd') startFromNotification();
-});
-
-async function restore() {
+const restore = () => serialized(async () => {
   const state = await getState();
   if (state.status === 'running' && Date.now() >= state.endTime) {
     await finishPhase();
@@ -289,7 +350,7 @@ async function restore() {
     }
     await setState(state);
   }
-}
+});
 
 chrome.runtime.onStartup.addListener(restore);
 chrome.runtime.onInstalled.addListener(restore);

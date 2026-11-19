@@ -46,7 +46,7 @@ function cycleInfo(s) {
   const total = s.settings.longBreakInterval;
   if (s.phase === 'longBreak') {
     // 長い休憩に入った時点で completedInCycle は 0 に戻っている
-    return { total, done: total, current: -1, text: `${total}回の作業を完了。休憩後は1回目から` };
+    return { total, done: total, current: -1, text: `${total}回の作業を完了\n休憩後は1回目から` };
   }
   // 途中で回数の設定を減らした場合も、次の作業が最後の1回として表示されるようにする
   const done = Math.min(s.completedInCycle, total - 1);
@@ -54,11 +54,11 @@ function cycleInfo(s) {
   if (s.phase === 'work') {
     const text =
       left === 1
-        ? `${done + 1}/${total}回目の作業・終わると長い休憩`
-        : `${done + 1}/${total}回目の作業・長い休憩まであと${left}回`;
+        ? `${done + 1}/${total}回目の作業\n終わると長い休憩`
+        : `${done + 1}/${total}回目の作業\n長い休憩まであと${left}回`;
     return { total, done, current: done, text };
   }
-  return { total, done, current: -1, text: `次は${done + 1}/${total}回目の作業・長い休憩まであと${left}回` };
+  return { total, done, current: -1, text: `次は${done + 1}/${total}回目の作業\n長い休憩まであと${left}回` };
 }
 
 function renderDots(info) {
@@ -115,6 +115,7 @@ function updateSoundUi() {
 
 function fillSettings() {
   for (const key of SETTING_KEYS) $(key).value = state.settings[key];
+  $('autoStartNext').checked = state.settings.autoStartNext ?? false;
   $('soundEnabled').checked = state.settings.soundEnabled ?? true;
   $('soundType').value = state.settings.soundType ?? 'chime';
   $('soundVolume').value = state.settings.soundVolume ?? 70;
@@ -162,6 +163,7 @@ $('save-settings').addEventListener('click', () => {
     }
     payload[key] = v;
   }
+  payload.autoStartNext = $('autoStartNext').checked;
   payload.soundEnabled = $('soundEnabled').checked;
   payload.soundType = $('soundType').value;
   payload.soundVolume = Number($('soundVolume').value);
