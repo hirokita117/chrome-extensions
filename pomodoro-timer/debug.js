@@ -57,6 +57,7 @@
       `completedInCycle=${state?.completedInCycle} todayCount=${state?.todayCount}`,
       `endTime=${fmt(state?.endTime)} remainingMs=${state?.remainingMs}`,
       `autoStartNext=${state?.settings?.autoStartNext}`,
+      `sound=${state?.settings?.soundEnabled} work=${state?.settings?.workEndSound} break=${state?.settings?.breakEndSound} vol=${state?.settings?.soundVolume}`,
       ...alarms.map((a) => `alarm ${a.name}: ${fmt(a.scheduledTime)}`),
     ].join('\n');
   }

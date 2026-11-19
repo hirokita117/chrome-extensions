@@ -102,8 +102,9 @@ function render() {
   }
 }
 
-for (const [value, label] of Object.entries(SOUND_TYPES)) {
-  $('soundType').append(new Option(label, value));
+const SOUND_SELECTS = ['workEndSound', 'breakEndSound'];
+for (const id of SOUND_SELECTS) {
+  for (const [value, label] of Object.entries(SOUND_TYPES)) $(id).append(new Option(label, value));
 }
 
 function updateSoundUi() {
@@ -117,16 +118,17 @@ function fillSettings() {
   for (const key of SETTING_KEYS) $(key).value = state.settings[key];
   $('autoStartNext').checked = state.settings.autoStartNext ?? false;
   $('soundEnabled').checked = state.settings.soundEnabled ?? true;
-  $('soundType').value = state.settings.soundType ?? 'chime';
+  $('workEndSound').value = state.settings.workEndSound ?? 'chime';
+  $('breakEndSound').value = state.settings.breakEndSound ?? 'bell';
   $('soundVolume').value = state.settings.soundVolume ?? 70;
   updateSoundUi();
 }
 
 $('soundEnabled').addEventListener('change', updateSoundUi);
 $('soundVolume').addEventListener('input', updateSoundUi);
-$('preview-sound').addEventListener('click', () => {
-  playSound($('soundType').value, Number($('soundVolume').value));
-});
+document.querySelectorAll('button.preview').forEach((b) =>
+  b.addEventListener('click', () => playSound($(b.dataset.for).value, Number($('soundVolume').value)))
+);
 
 async function load() {
   const res = await chrome.storage.local.get('state');
@@ -165,7 +167,8 @@ $('save-settings').addEventListener('click', () => {
   }
   payload.autoStartNext = $('autoStartNext').checked;
   payload.soundEnabled = $('soundEnabled').checked;
-  payload.soundType = $('soundType').value;
+  payload.workEndSound = $('workEndSound').value;
+  payload.breakEndSound = $('breakEndSound').value;
   payload.soundVolume = Number($('soundVolume').value);
   send('saveSettings', payload);
   $('save-settings').textContent = '保存しました';

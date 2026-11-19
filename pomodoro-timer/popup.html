@@ -156,12 +156,15 @@
     }
     input[type="range"] { width: 100%; margin: 0; }
     .sound-settings.disabled .settings-grid { opacity: 0.4; }
-    #preview-sound {
-      margin-top: 8px;
-      width: 100%;
+    .sound-settings .settings-grid { grid-template-columns: 1fr 130px; }
+    .sound-pick { display: flex; gap: 4px; }
+    .sound-pick select { flex: 1; min-width: 0; }
+    button.preview {
+      flex: 0 0 26px;
+      padding: 2px 0;
       background: #f3f4f6;
       color: #333;
-      font-weight: 500;
+      font-size: 11px;
     }
     #save-settings {
       margin-top: 8px;
@@ -201,12 +204,19 @@
     <div class="sound-settings">
       <label class="check"><input type="checkbox" id="soundEnabled"> 終了時に音を鳴らす</label>
       <div class="settings-grid">
-        <label for="soundType">音の種類</label>
-        <select id="soundType"></select>
+        <label for="workEndSound">作業が終わったとき</label>
+        <div class="sound-pick">
+          <select id="workEndSound"></select>
+          <button class="preview" data-for="workEndSound" title="試しに鳴らす">▶</button>
+        </div>
+        <label for="breakEndSound">休憩が終わったとき</label>
+        <div class="sound-pick">
+          <select id="breakEndSound"></select>
+          <button class="preview" data-for="breakEndSound" title="試しに鳴らす">▶</button>
+        </div>
         <label for="soundVolume">音量 <span id="volume-value"></span></label>
         <input type="range" id="soundVolume" min="0" max="100" step="5">
       </div>
-      <button id="preview-sound" class="secondary">試しに鳴らす</button>
     </div>
     <button id="save-settings">保存</button>
     <div class="hint">実行中のタイマーには、次のフェーズから反映されます。</div>

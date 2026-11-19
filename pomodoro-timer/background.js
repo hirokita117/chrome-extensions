@@ -5,7 +5,9 @@ const DEFAULT_SETTINGS = {
   longBreakInterval: 4,
   soundEnabled: true,
   soundVolume: 70, // 0〜100
-  soundType: 'chime', // sound.js の SOUND_TYPES のキー
+  // 音の種類は sound.js の SOUND_TYPES のキー
+  workEndSound: 'chime', // 作業が終わったとき
+  breakEndSound: 'bell', // 休憩（短い・長い）が終わったとき
   autoStartNext: false, // フェーズ終了後に次のフェーズを自動で開始する
 };
 
@@ -47,7 +49,11 @@ function phaseDurationMs(phase, settings) {
 async function getState() {
   const { state } = await chrome.storage.local.get('state');
   const s = state ? { ...defaultState(), ...state } : defaultState();
-  s.settings = { ...DEFAULT_SETTINGS, ...s.settings };
+  const stored = { ...s.settings };
+  // 旧バージョン（音が1種類だけ）の設定から移行する。選んでいた音は作業終了の音として引き継ぐ
+  if (stored.soundType && !stored.workEndSound) stored.workEndSound = stored.soundType;
+  delete stored.soundType;
+  s.settings = { ...DEFAULT_SETTINGS, ...stored };
   if (s.todayDate !== todayString()) {
     s.todayDate = todayString();
     s.todayCount = 0;
@@ -135,7 +141,8 @@ async function finishPhase() {
   }
 
   if (state.settings.soundEnabled) {
-    playSound(state.settings).catch((e) => console.warn('通知音を再生できませんでした', e));
+    const soundType = finished === 'work' ? state.settings.workEndSound : state.settings.breakEndSound;
+    playSound(soundType, state.settings.soundVolume).catch((e) => console.warn('通知音を再生できませんでした', e));
   }
 
   const title =
@@ -180,13 +187,13 @@ async function ensureOffscreen() {
   await creatingOffscreen;
 }
 
-async function playSound(settings) {
+async function playSound(soundType, volume) {
   await ensureOffscreen();
   await chrome.runtime.sendMessage({
     target: 'offscreen',
     type: 'play',
-    soundType: settings.soundType,
-    volume: settings.soundVolume,
+    soundType,
+    volume,
   });
 }
 
