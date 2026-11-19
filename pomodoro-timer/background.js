@@ -3,6 +3,9 @@ const DEFAULT_SETTINGS = {
   shortBreakMin: 5,
   longBreakMin: 15,
   longBreakInterval: 4,
+  soundEnabled: true,
+  soundVolume: 70, // 0〜100
+  soundType: 'chime', // sound.js の SOUND_TYPES のキー
 };
 
 const PHASE_LABEL = {
@@ -110,6 +113,10 @@ async function finishPhase() {
   state.remainingMs = null;
   await setState(state);
 
+  if (state.settings.soundEnabled) {
+    playSound(state.settings).catch((e) => console.warn('通知音を再生できませんでした', e));
+  }
+
   const title =
     finished === 'work' ? `作業が終わりました（今日 ${state.todayCount} 回目）` : '休憩が終わりました';
   chrome.notifications.create('phaseEnd', {
@@ -120,6 +127,34 @@ async function finishPhase() {
     buttons: [{ title: `${PHASE_LABEL[state.phase]}を開始` }],
     requireInteraction: true,
     priority: 2,
+  });
+}
+
+// service worker は音を出せないので、offscreen ドキュメントで再生する
+let creatingOffscreen = null;
+
+async function ensureOffscreen() {
+  const contexts = await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] });
+  if (contexts.length > 0) return;
+  if (!creatingOffscreen) {
+    creatingOffscreen = chrome.offscreen
+      .createDocument({
+        url: 'offscreen.html',
+        reasons: ['AUDIO_PLAYBACK'],
+        justification: 'フェーズ終了時に通知音を鳴らすため',
+      })
+      .finally(() => (creatingOffscreen = null));
+  }
+  await creatingOffscreen;
+}
+
+async function playSound(settings) {
+  await ensureOffscreen();
+  await chrome.runtime.sendMessage({
+    target: 'offscreen',
+    type: 'play',
+    soundType: settings.soundType,
+    volume: settings.soundVolume,
   });
 }
 
@@ -211,6 +246,7 @@ chrome.windows.onRemoved.addListener(async (windowId) => {
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg.target === 'offscreen') return false;
   handleCommand(msg.type, msg.payload)
     .then(() => sendResponse({ ok: true }))
     .catch((e) => sendResponse({ ok: false, error: String(e) }));

@@ -109,6 +109,28 @@
       font-size: 13px;
       box-sizing: border-box;
     }
+    .sound-settings {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px dashed #eee;
+    }
+    label.check { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    select {
+      width: 100%;
+      padding: 3px 4px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    input[type="range"] { width: 100%; margin: 0; }
+    .sound-settings.disabled .settings-grid { opacity: 0.4; }
+    #preview-sound {
+      margin-top: 8px;
+      width: 100%;
+      background: #f3f4f6;
+      color: #333;
+      font-weight: 500;
+    }
     #save-settings {
       margin-top: 8px;
       width: 100%;
@@ -139,9 +161,20 @@
       <label for="longBreakMin">長い休憩（分）</label><input type="number" id="longBreakMin" min="1" max="120">
       <label for="longBreakInterval">長い休憩までの作業回数</label><input type="number" id="longBreakInterval" min="1" max="12">
     </div>
+    <div class="sound-settings">
+      <label class="check"><input type="checkbox" id="soundEnabled"> 終了時に音を鳴らす</label>
+      <div class="settings-grid">
+        <label for="soundType">音の種類</label>
+        <select id="soundType"></select>
+        <label for="soundVolume">音量 <span id="volume-value"></span></label>
+        <input type="range" id="soundVolume" min="0" max="100" step="5">
+      </div>
+      <button id="preview-sound" class="secondary">試しに鳴らす</button>
+    </div>
     <button id="save-settings">保存</button>
     <div class="hint">実行中のタイマーには、次のフェーズから反映されます。</div>
   </details>
+  <script src="sound.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

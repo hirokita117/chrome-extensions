@@ -61,9 +61,30 @@ function render() {
   }
 }
 
+for (const [value, label] of Object.entries(SOUND_TYPES)) {
+  $('soundType').append(new Option(label, value));
+}
+
+function updateSoundUi() {
+  $('volume-value').textContent = `${$('soundVolume').value}%`;
+  document
+    .querySelector('.sound-settings')
+    .classList.toggle('disabled', !$('soundEnabled').checked);
+}
+
 function fillSettings() {
   for (const key of SETTING_KEYS) $(key).value = state.settings[key];
+  $('soundEnabled').checked = state.settings.soundEnabled ?? true;
+  $('soundType').value = state.settings.soundType ?? 'chime';
+  $('soundVolume').value = state.settings.soundVolume ?? 70;
+  updateSoundUi();
 }
+
+$('soundEnabled').addEventListener('change', updateSoundUi);
+$('soundVolume').addEventListener('input', updateSoundUi);
+$('preview-sound').addEventListener('click', () => {
+  playSound($('soundType').value, Number($('soundVolume').value));
+});
 
 async function load() {
   const res = await chrome.storage.local.get('state');
@@ -100,6 +121,9 @@ $('save-settings').addEventListener('click', () => {
     }
     payload[key] = v;
   }
+  payload.soundEnabled = $('soundEnabled').checked;
+  payload.soundType = $('soundType').value;
+  payload.soundVolume = Number($('soundVolume').value);
   send('saveSettings', payload);
   $('save-settings').textContent = '保存しました';
   setTimeout(() => ($('save-settings').textContent = '保存'), 1200);

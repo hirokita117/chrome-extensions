@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Pomodoro Timer",
-  "version": "1.0",
+  "version": "1.1",
   "description": "作業と休憩を交互に計るポモドーロタイマー。独立ウインドウのウィジェットとしても使えます。",
-  "permissions": ["storage", "alarms", "notifications"],
+  "permissions": ["storage", "alarms", "notifications", "offscreen"],
   "background": {
     "service_worker": "background.js"
   },
