@@ -244,30 +244,6 @@ async function handleCommand(type, payload) {
     case 'openWidget':
       await openWidget();
       break;
-
-    // ---- デバッグ用（一時的な機能。不要になったら popup の debug セクションごと削除する） ----
-    case 'debugSetRemaining': {
-      const ms = Math.max(0, payload.seconds) * 1000;
-      if (state.status === 'paused') {
-        state.remainingMs = ms;
-        await setState(state);
-      } else {
-        if (state.status !== 'running') await startTimer(state);
-        state.endTime = Date.now() + ms;
-        await chrome.alarms.create('phaseEnd', { when: state.endTime });
-        await setState(state);
-      }
-      break;
-    }
-    case 'debugFinishNow':
-      if (state.status !== 'running') await startTimer(state);
-      await finishPhase();
-      break;
-    case 'debugResetCycle':
-      state.completedInCycle = 0;
-      state.todayCount = 0;
-      await setState(state);
-      break;
   }
 }
 
@@ -330,7 +306,7 @@ chrome.alarms.onAlarm.addListener((alarm) =>
     const state = await getState();
     if (state.status !== 'running') return;
     // phaseEnd が来たとき、または phaseEnd が遅れて tick で終了時刻を過ぎていたら終了する。
-    // デバッグで終了時刻を変えた直後の古い phaseEnd は、時刻をまだ過ぎていないので無視される。
+    // 終了時刻より前に届いた phaseEnd（再開前の古いアラームなど）は無視する。
     if (Date.now() >= state.endTime - 500) await finishPhase();
     else await updateBadge(state);
   })
