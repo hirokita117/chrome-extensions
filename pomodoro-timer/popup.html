@@ -48,6 +48,29 @@
       color: #111;
     }
     body.widget .time { font-size: 22vw; margin: 0 0 4vh; }
+    .cycle {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+    .dots {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid #d1d5db;
+      box-sizing: border-box;
+    }
+    .dot.done { background: var(--work); border-color: var(--work); }
+    .dot.current { border-color: var(--work); }
+    .cycle-text { font-size: 12px; color: #555; }
+    body.widget .dot { width: 14px; height: 14px; }
+    body.widget .cycle-text { font-size: 14px; }
     .controls {
       display: flex;
       gap: 6px;
@@ -143,6 +166,10 @@
 <body>
   <div class="phase"><span id="phase-label">作業</span><span class="status" id="status-label"></span></div>
   <div class="time" id="time">25:00</div>
+  <div class="cycle">
+    <div class="dots" id="dots" aria-hidden="true"></div>
+    <div class="cycle-text" id="cycle-text"></div>
+  </div>
   <div class="controls">
     <button id="toggle">開始</button>
     <button id="reset" class="secondary" title="今のフェーズを最初から">リセット</button>

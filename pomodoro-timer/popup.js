@@ -41,8 +41,48 @@ function toggleLabel(s) {
   return '開始';
 }
 
+// サイクル（長い休憩までの作業回数）の進み具合
+function cycleInfo(s) {
+  const total = s.settings.longBreakInterval;
+  if (s.phase === 'longBreak') {
+    // 長い休憩に入った時点で completedInCycle は 0 に戻っている
+    return { total, done: total, current: -1, text: `${total}回の作業を完了。休憩後は1回目から` };
+  }
+  // 途中で回数の設定を減らした場合も、次の作業が最後の1回として表示されるようにする
+  const done = Math.min(s.completedInCycle, total - 1);
+  const left = total - done; // 長い休憩までに残っている作業回数（今の作業を含む）
+  if (s.phase === 'work') {
+    const text =
+      left === 1
+        ? `${done + 1}/${total}回目の作業・終わると長い休憩`
+        : `${done + 1}/${total}回目の作業・長い休憩まであと${left}回`;
+    return { total, done, current: done, text };
+  }
+  return { total, done, current: -1, text: `次は${done + 1}/${total}回目の作業・長い休憩まであと${left}回` };
+}
+
+function renderDots(info) {
+  const dots = $('dots');
+  if (dots.childElementCount !== info.total) {
+    dots.replaceChildren(
+      ...Array.from({ length: info.total }, () => {
+        const d = document.createElement('span');
+        d.className = 'dot';
+        return d;
+      })
+    );
+  }
+  [...dots.children].forEach((d, i) => {
+    d.classList.toggle('done', i < info.done);
+    d.classList.toggle('current', i === info.current);
+  });
+}
+
 function render() {
   if (!state) return;
+  const cycle = cycleInfo(state);
+  renderDots(cycle);
+  $('cycle-text').textContent = cycle.text;
   const time = format(remainingMs(state));
   const isBreak = state.phase !== 'work';
   document.body.classList.toggle('phase-break', isBreak);
@@ -55,7 +95,8 @@ function render() {
 
   if (pip) {
     pip.window.document.body.classList.toggle('phase-break', isBreak);
-    pip.phase.textContent = PHASE_LABEL[state.phase] + STATUS_LABEL[state.status];
+    const count = state.phase === 'work' ? ` ${cycle.done + 1}/${cycle.total}` : '';
+    pip.phase.textContent = PHASE_LABEL[state.phase] + count + STATUS_LABEL[state.status];
     pip.time.textContent = time;
     pip.toggle.textContent = toggleLabel(state);
   }
